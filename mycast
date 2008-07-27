@@ -1,0 +1,185 @@
+#!/usr/bin/env ruby
+
+# Converts a video file to a formatted HTML page. Creates a directory containing all of
+# the necessary resources for Flash video playback such as index.html, image files and the
+# JW Media Player.
+
+require 'optparse'    # OptionParse.new
+require 'rdoc/usage'  # RDoc::usage
+require 'base64'      # Base64.encode64, Base64.decode64
+require 'fileutils'   # FileUtils.mkdir_p
+require 'ostruct'     # OpenStruct.new
+require 'cgi'         # CGI.escape
+require 'yaml'        # YAML::load
+require 'open3'       # Open3.popen3
+require 'erb'         # ERB.new
+
+ROOT = File.dirname(File.symlink?(__FILE__) ? File.readlink(__FILE__) : __FILE__)
+
+setup_file = File.join(ROOT, "config", "setup.yml")
+options = OpenStruct.new(YAML::load(IO.read(setup_file)))
+def options.get_binding() binding end
+
+parser = OptionParser.new do |opt|
+  opt.banner = "Usage: mycast [options] video.mov target-directory"
+  opt.separator ""
+  
+  opt.on("-h", "--help", "Help") do
+    RDoc.usage_no_exit
+    puts parser
+    exit
+  end
+  opt.on("-a", "--author [name]", "Name of the author") do |value|
+    options.author = value
+  end
+  opt.on("-t", "--title [title]", "Title of the screencast") do |value|
+    options.title = value
+  end
+  opt.on("-d", "--dimensions [width x height]", "Dimensions of the video (e.g. the .mov file)") do |value|
+    options.width, options.height = value.split("x").map{ |d| d.to_i }
+  end
+  opt.on("-v", "--video VIDEO", "The video file to convert to FLV format") do |filename|
+    options.video = File.expand_path(filename)
+  end
+  opt.on("-f", "--force", "Overwrite the target-directory if it exists.") do |filename|
+    options.force = true
+  end
+  opt.on("--verbose", "Report on extra information during process") do
+    options.verbose = true
+  end
+
+  opt.separator ""
+end
+
+def unindent(text)
+  ws = text[/^(\s+)/]
+  text.to_a.map { |line| line.index(ws) == 0 ? line[ws.size..-1] : line }.join
+end
+
+def create_directory(new_dir)
+  template = File.join(ROOT, "template")
+  FileUtils.mkdir_p new_dir
+  FileUtils.cp_r Dir.glob("#{template}/**"), new_dir
+end
+
+def get_qt_info(mov_file)
+  qt = {}
+  Open3.popen3("qt_info '#{mov_file}'") do |stdin, stdout, stderr|
+    info = stdout.read
+    dimensions = info.scan(/movie box\s*:\s*\((\d+),(\d+),(\d+),(\d+)\)/).first
+    x, y, qt[:width], qt[:height] = dimensions.map{ |d| d.to_i }
+  end
+  return qt
+end
+
+def pbcopy(text)
+  Open3.popen3("pbcopy") do |stdin, stdout, stderr|
+    stdin.write text
+  end
+end
+
+def ask_for_screenshot(mov_file, target_dir, target_file = "screen.jpg", target_file_small = "screen-small.jpg")
+  tpath = File.join(target_dir, target_file)
+  tpath_s = File.join(target_dir, target_file_small)
+  script = <<-OSASCRIPT
+    osascript <<END
+    tell application "QuickTime Player"
+      activate
+      try
+        close movie 1
+      end try
+      open "#{mov_file}"
+    end tell
+    END
+    screencapture -i -o -w -t jpg "#{tpath}"
+    osascript -e "tell application \\"QuickTime Player\\" to quit"
+    convert "#{tpath}" -roll +0+30 -shave 0x54 -resize 400x300 "#{tpath_s}"
+  OSASCRIPT
+  system(unindent(script))
+end
+
+# @return The new flv_file name
+def convert_mov_to_flv(mov_file, target_dir)
+  vhub_config_file = File.join(ROOT, "config", "basic_flv.vhub")
+  script = <<-OSASCRIPT
+    osascript <<END
+    tell application "VisualHub" to set VisualHub to load script (scripts path of main bundle & "/automation.scpt" as POSIX file)
+    tell VisualHub
+      ClearAll()
+      AddFiles({"#{mov_file}"})
+      SetSaveLocation("#{target_dir}")
+      LoadSettings("#{vhub_config_file}")
+      StartConversion()
+    end tell
+    END
+    sleep 1
+    killall VisualHub
+    rm #{target_dir}/*.flv.flv
+    rm #{target_dir}/*.mov.temp.*
+  OSASCRIPT
+  system(unindent(script))
+  base = mov_file[/($|\/)([^\.]+)/]
+  File.join(target_dir, base + ".flv")
+end
+
+def render_from_erb_file(filename, vars)
+  erb = ERB.new(IO.read(filename))
+  basename = filename.match(/^(.*)\.erb$/)[1]
+  File.open(basename, "w") { |f| f.write erb.result(vars.get_binding) }
+end
+
+# === Begin ===
+
+begin
+  parser.parse!(ARGV)
+rescue OptionParser::ParseError => e
+  puts e
+  exit
+end
+
+if ARGV.length != 2
+  puts "A video file and a target directory are required arguments (try '#{__FILE__} --help')."
+  exit 0
+else
+  relative_dir = ARGV[1]
+  mov_file, dir = ARGV.map{ |f| File.expand_path(f) }
+  
+  if File.exist? dir and !options.force
+    puts "Directory already exists.  Please provide a new directory name."
+    exit
+  end
+  
+  if File.extname(mov_file) == ".mov"
+    puts "Get QuickTime info from .mov file..."
+    qt_options = get_qt_info(mov_file)
+    options.instance_variable_get("@table").merge! qt_options
+    p qt_options if options.verbose
+  end
+  
+  puts "Create and populate the directory, #{relative_dir}..."
+  create_directory(dir)
+  
+  puts "Convert the QuickTime movie to a Flash file (flv)..."
+  options.video = File.basename(convert_mov_to_flv(mov_file, dir))
+  
+  puts "Parse the HTML file and replace with variables..."
+  p options if options.verbose
+  html_file = File.join(dir, "index.html.erb")
+  render_from_erb_file(html_file, options)
+  FileUtils.rm html_file
+  
+  puts "Get a screenshot..."
+  ask_for_screenshot(mov_file, dir)
+  
+  puts "Paste to the system clipboard a link to the screencast..."
+  url_prefix = File.join(options.host_url, relative_dir)
+  pbcopy(unindent(<<-HTML))
+  <a href="#{url_prefix}/">
+    <img src="#{url_prefix}/screen-small.jpg" />
+  </a>
+  HTML
+  
+  puts "Open the new folder in the Finder and the HTML file in a browser..."
+  system "open #{dir}"
+  system "open #{File.join(dir, "index.html")}"
+end

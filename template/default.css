@@ -1,0 +1,73 @@
+body {
+	margin: 0px;
+	font-family: Optima, Lucida Grande, sans-serif;
+}
+#container {
+	min-width: 800px;
+}
+#header {
+	background-color: black;
+	color: white;
+	height: 108px;
+	position: relative;
+}
+#green-line {
+	position: absolute;
+	bottom: 0px;
+	width: 100%;
+	height: 29px;
+	background: url(images/green-horz.png) repeat-x;
+}
+#logo {
+	position: absolute;
+	left: 0px;
+	top: 0px;
+	width: 288px;
+	height: 136px;
+	background: url(images/logo.png) no-repeat;
+}
+#title {
+	position: absolute;
+	right: 1em;
+	top: 1em;
+	font-size: 16pt;
+}
+#author {
+	position: absolute;
+	right: 1em;
+	top: 60px;
+	width: 130px;
+	height: 22px;
+	background: url(images/author.png) no-repeat;
+}
+#main {
+	padding: 30px 2em 2em 2em;
+	text-align: center;
+}
+#footer {
+	position: fixed;
+	bottom: 0px;
+	width: 100%;
+	background-color: #555;
+	color: #aaa;
+	padding-left: 1em;
+	line-height: 3em;
+	border-top: 1px solid #111;
+	min-height: 3em;
+	text-align: center;
+}
+#footer a {
+	color: white;
+	font-weight: bold;
+	text-decoration: none;
+}
+#footer a:hover {
+	text-decoration: underline;
+}
+.footer-info {
+	padding-right: 2em;
+}
+.sep {
+	padding-left: 0.5em;
+	padding-right: 0.5em;
+}

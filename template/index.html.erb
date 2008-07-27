@@ -1,0 +1,46 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+   "http://www.w3.org/TR/html4/loose.dtd">
+
+<html lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<title><%= title %></title>
+	<meta name="author" content="<%= author %>">
+	<!-- Date: <%= date %> -->
+	<link rel="stylesheet" href="default.css" type="text/css" charset="utf-8">
+	<script src="swfobject.js" type="text/javascript" charset="utf-8"></script>
+</head>
+<body>
+	<div id="container">
+		<div id="header">
+			<div id="green-line"></div>
+			<div id="logo"></div>
+			<div id="author"></div>
+			<div id="title">&#8220;<%= title %>&#8221;</div>
+		</div>
+		<div id="main">
+			<div id="player">
+				<a href="http://www.macromedia.com/go/getflashplayer">Get the Flash Player</a> to see this player.
+			</div>
+			
+			<script type="text/javascript">
+				var s1 = new SWFObject("mediaplayer.swf","mediaplayer","<%= width %>","<%= height %>","8");
+				s1.addParam("allowfullscreen","true");
+				s1.addVariable("width","<%= width %>");
+				s1.addVariable("height","<%= height %>");
+				s1.addVariable("file","<%= video %>");
+				s1.write("player");
+			</script>
+			
+		</div>
+	</div>
+	<div id="footer">
+		<span class="footer-info">&copy; <%= Time.now.year %> InquiryLabs, Inc.</span>
+		<span class="footer-info">
+			<a href="http://blog.inquirylabs.com/about">Contact</a>
+			<span class="sep">|</span>
+			<a href="http://blog.inquirylabs.com/">Blog</a>
+		</span>
+	</div>
+</body>
+</html>
