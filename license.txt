@@ -1,0 +1,3 @@
+(c) 2008 Duane Johnson
+
+This software (MyCast) is released under the MIT license, except for the JW FLV Media Player (mediaplayer.swf), which is released under the Attribution-Noncommercial-Share Alike 3.0 Unported license.  See http://creativecommons.org/licenses/by-nc-sa/3.0/
