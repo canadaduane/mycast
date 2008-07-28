@@ -41,8 +41,11 @@ parser = OptionParser.new do |opt|
   opt.on("-v", "--video VIDEO", "The video file to convert to FLV format") do |filename|
     options.video = File.expand_path(filename)
   end
-  opt.on("-f", "--force", "Overwrite the target-directory if it exists.") do |filename|
+  opt.on("-f", "--force", "Overwrite the target-directory if it exists") do |filename|
     options.force = true
+  end
+  opt.on("-c", "--config=FILE", "The VisualHub .vhub config file to use") do |filename|
+    options.vhub = filename
   end
   opt.on("--verbose", "Report on extra information during process") do
     options.verbose = true
@@ -99,8 +102,7 @@ def ask_for_screenshot(mov_file, target_dir, target_file = "screen.jpg", target_
 end
 
 # @return The new flv_file name
-def convert_mov_to_flv(mov_file, target_dir)
-  vhub_config_file = File.join(ROOT, "config", "basic_flv.vhub")
+def convert_mov_to_flv(mov_file, target_dir, vhub_config_file)
   script = <<-OSASCRIPT
     osascript <<END
     tell application "VisualHub" to set VisualHub to load script (scripts path of main bundle & "/automation.scpt" as POSIX file)
@@ -160,7 +162,8 @@ else
   create_directory(dir)
   
   puts "Convert the QuickTime movie to a Flash file (flv)..."
-  options.video = File.basename(convert_mov_to_flv(mov_file, dir))
+  vhub_config_file = options.vhub || File.join(ROOT, "config", "basic_flv.vhub")
+  options.video = File.basename(convert_mov_to_flv(mov_file, dir, vhub_config_file))
   
   puts "Parse the HTML file and replace with variables..."
   p options if options.verbose
